@@ -3,8 +3,9 @@ const fs = require('fs')  // import file sytem module
 let headerProperties = [];
 let propertyValues = new Set() // set up unique values;
 let propertyKeys = new Set()
+let  propertyKeysN = []
 let search_metric = 'net_sales';
-
+let groups  = {}
 
 
 const hierarchicalSort = (data_file, key)=>{
@@ -18,21 +19,20 @@ const hierarchicalSort = (data_file, key)=>{
     
         headerLine = lines[0]; // set output header as the first line
         headerProperties = headerLine.split('|');
+        propertyKeysN = headerProperties.filter(hp => hp.startsWith('property'))
+        console.log('Property keys N ', propertyKeysN)
 
-        headerProperties.forEach((headerProp, headerIndex)=>{ //run through columns
+     
+    
             // set rows
-
             for(let i = 1; i<lines.length; i++){ //skip the first header line, i.e index 0 by starting from i = 1
                 line = lines[i];
-                dataArray.push(convertLineToPropertiesObject(line,headerProp, headerIndex))
-                // dataArray.sort(compareFunction)
+                dataArray.push(convertLineToPropertiesObject(line))
             }
-        })
-    
-      
-
-        sorted = dataArray.sort(compareFunction)
-        groupItems(sorted)
+     
+        sortedByTotal = dataArray.sort(compareByTotal)
+        console.log('Sorted by Total ::',sortedByTotal)
+        groupItems(sortedByTotal)
 
     }) 
 }
@@ -42,30 +42,39 @@ const hierarchicalSort = (data_file, key)=>{
  * @param {*} line 
  * This method takes each line of data and returns a key:value pair matching headerProperties
  */
- const convertLineToPropertiesObject = (line, headerProp)=>{
+ const convertLineToPropertiesObject = (line, headerProp, headerIndex)=>{
     const lineArray = line.split('|')
     let dictionary = {};
     headerProperties.forEach((prop, index)=>{ //  each lineArray has the same no of items as 'headerProperties', so indices match
     dictionary[prop] = lineArray[index]
-    if(prop.startsWith('property')){
+    if(prop.startsWith('property0')){
     propertyKeys.add(prop)
     propertyValues.add(lineArray[index])
     }
     })
 
 
-    return dictionary;
+    return sortRowTotal(dictionary);
+}
+
+const groupByParent = (dict, key) =>{
+    let grouped = []
+    if(key in groups){
+        console.log('in groups')
+    }else{
+        console.log('in groups')
+    }
 }
 
 
 /**
  * 
- * @param {*} a 
+ * @param {*} a '
  * @param {*} b 
  * 
  * This method sorts an array of objects in descending order (highest first), using the search metric specified in cli
  */
-const compareFunction = (a,b) =>{
+const compareByMetric = (a,b) =>{
     // convert values to float
     a_val = parseFloat(a[search_metric]) 
     b_val = parseFloat( b[search_metric])
@@ -76,24 +85,45 @@ const compareFunction = (a,b) =>{
     return b_val - a_val // highest first
 }
 
+const compareByTotal = (a, b) =>{
+    return  b['row_total'] - a['row_total'] //highest first
+}
+
+const searchByProperty =()=>{
+
+}
+
+const sortRowTotal = (rowDict)=>{
+    row_total = 0;
+     
+    for(let pIndex = 0; pIndex < propertyKeysN.length; pIndex++ ){
+        if(rowDict[propertyKeysN[pIndex]] == '$total'){
+            row_total+=1;
+        }
+    }
+    rowDict['row_total'] = row_total;
+
+    return rowDict;
+
+}
+
 const groupItems = (sorted) =>{
   
     dict = {}
-    console.log(propertyValues)
+    dictArray = [];
     for(let value of propertyValues){
         dict[value] = []
         for(let key of propertyKeys){
-            dict_val = `${key}_${value}`
-            dict[value] = sorted.filter((s)=>{
-                return s[key] == value
-            })
-            dict[dict_val] = [...dict[value]]
-            delete dict[value];
-          
+                dict[value] = sorted.filter((s)=>{
+                    return s[key] == value
+                })
+           
         }
+        dict[value].sort(compareByTotal)
+        
     }
     console.log(dict)
-    // rearrangeTotals(dict)
+
    
     
    
@@ -131,12 +161,14 @@ const setTotal = (array, key, value)=>{
     return newArray
 }
 
- 
-  
+ const writeOutput = ()=>{
+
+ }
 
 
 /**
- * This is the main method that runs hierarichical sort
+ * This is the main method that runs hierarichical sort. 
+ * It optionally takes positional command line arguments for source text file, and sort metric respectively
  */
 const main = () => {
     cli_args = process.argv.slice(2)
