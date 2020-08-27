@@ -271,7 +271,11 @@ const groupItems = (sorted) =>{
         }
         lines += '\n'
     })
-    console.log(lines)
+    fs.writeFile('main.output.txt',lines, function (err) {
+        if (err) throw err;
+        console.log('Output written');
+      });
+  
  }
 
 /**
